@@ -20,14 +20,15 @@ class Trainer:
         self.policies = policies
         self.target_policeis = copy.deepcopy(policies)
         
+
         self.params = []
         for agent_id, policy in enumerate(self.policies):        
             self.params += list(policy.model.parameters())
         
         self.target_params = []
         for agent_id, target_policy in enumerate(self.target_policeis):
-            self.target_params += list(target_policy.model.parameters())        
-        
+            self.target_params += list(target_policy.model.parameters())   
+
         # define optimizer
         self.optimizer = torch.optim.Adam(params=self.params, lr = self.args.lr_policy)
 
@@ -36,21 +37,24 @@ class Trainer:
         
         q_values = torch.reshape(q_values, [self.args.batch_size, self.args.num_drones])
         next_q_values = torch.reshape(next_q_values, [self.args.batch_size, self.args.num_drones])          
-        targets = rewards.unsqueeze(1) + self.args.gamma * next_q_values                                 
-        
-        self. optimizer.zero_grad()        
-        loss = (targets - q_values).pow(2).mean()          
+        # mix the q values
+        mix_q = torch.sum(q_values, dim = 1)
+        mix_next_q = torch.sum(next_q_values, dim = 1)
+        # calculate the targets
+        targets = rewards + self.args.gamma * mix_next_q                        
+                
+        self.optimizer.zero_grad()        
+        loss = (targets - mix_q).pow(2).mean()          
         loss.backward()
         torch_utils.clip_grad_norm_(self.params, 0.5)        
         self.optimizer.step()  
-        self.soft_target_network_update()          
         
-        # if time_step >=self.args.wait_steps and time_step % self.args.update_target_frequency == 0:
-        #     self.update_target_network()
-        #     print('=====[Target has been updated]======')
+        if time_step >=self.args.wait_steps and time_step % self.args.update_target_frequency == 0:
+            self.update_target_network()
+            print('=====[Target has been updated]======')
         
-        if time_step % 300 == 0:
-            self.writer.add_scalar('loss' , loss, int(time_step - 300 / 300))
+        if time_step % 100 == 0:
+            self.writer.add_scalar('loss' , loss, int(time_step - self.args.wait_steps / 100))
 
     def get_samples(self, buffer, time_step):                
         self.buffer = buffer # size = (batch_size, num_agents, length_trajectories)
@@ -94,11 +98,9 @@ class Trainer:
 
         return [chosen_q, rewards, next_q]
     
-    def update_target_network(self):
-        self.target_params = copy.deepcopy(self.params)        
-
-    def soft_target_network_update(self):
-        self.target_params.data.copy_((1-self.args.tau) * self.target_params.data + self.args.tau * self.params.data)
+    def update_target_network(self):    
+        for target_policy, policy in zip(self.target_policeis, self.policies):
+            target_policy.model.load_state_dict(policy.model.state_dict()) 
 
     def save_model(self, time_step):
         num = str(time_step // self.args.save_rate)
