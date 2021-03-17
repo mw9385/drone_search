@@ -36,20 +36,20 @@ class Trainer:
         image_length = self.args.obs_shape * self.args.obs_shape * 3 + 4                                
         
         q_values = torch.reshape(q_values, [self.args.batch_size, self.args.num_drones])
-        next_q_values = torch.reshape(next_q_values, [self.args.batch_size, self.args.num_drones])          
+        next_q_values = torch.reshape(next_q_values, [self.args.batch_size, self.args.num_drones])                  
         # mix the q values
         mix_q = torch.sum(q_values, dim = 1)
         mix_next_q = torch.sum(next_q_values, dim = 1)
+        
         # calculate the targets
-        targets = rewards + self.args.gamma * mix_next_q                        
-                
+        targets = rewards + self.args.gamma * mix_next_q                                                
         self.optimizer.zero_grad()        
         loss = (targets - mix_q).pow(2).mean()          
         loss.backward()
         torch_utils.clip_grad_norm_(self.params, 0.5)        
         self.optimizer.step()  
         
-        if time_step >=self.args.wait_steps and time_step % self.args.update_target_frequency == 0:
+        if time_step >self.args.wait_steps and time_step % self.args.update_target_frequency == 0:
             self.update_target_network()
             print('=====[Target has been updated]======')
         

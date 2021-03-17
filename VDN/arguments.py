@@ -25,7 +25,7 @@ def get_args():
     parser.add_argument("--anneal-range", type=int, default=100000, help="annealing rate")    
     parser.add_argument("--gamma", type=float, default=0.99, help="discount factor")    
     parser.add_argument("--tau", type=float, default=0.0001, help="soft target update rate")    
-    parser.add_argument("--update-target-frequency", type=int, default=2000, help="number of episodes to optimize at the same time")
+    parser.add_argument("--update-target-frequency", type=int, default=3000, help="number of episodes to optimize at the same time")
     parser.add_argument("--wait-steps", type=int, default=3000, help="number of samples to collect before start training")
     parser.add_argument("--buffer-size", type=int, default=int(5e5), help="number of transitions can be stored in buffer")
     parser.add_argument("--batch-size", type=int, default=256, help="number of episodes to optimize at the same time")    
