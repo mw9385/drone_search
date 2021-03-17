@@ -49,12 +49,18 @@ class Trainer:
         torch_utils.clip_grad_norm_(self.params, 0.5)        
         self.optimizer.step()  
         
+        # update the target networks
         if time_step >self.args.wait_steps and time_step % self.args.update_target_frequency == 0:
             self.update_target_network()
             print('=====[Target has been updated]======')
         
+        # write loss into the tensorboard
         if time_step % 100 == 0:
             self.writer.add_scalar('loss' , loss, int(time_step - self.args.wait_steps / 100))
+
+        # save the model
+        if time_step > self.args.wait_steps and time_step % self.args.save_rate == 0:
+            self.save_model(time_step)
 
     def get_samples(self, buffer, time_step):                
         self.buffer = buffer # size = (batch_size, num_agents, length_trajectories)
@@ -103,12 +109,14 @@ class Trainer:
             target_policy.model.load_state_dict(policy.model.state_dict()) 
 
     def save_model(self, time_step):
+        print("======[MODEL SAVED]======")
         num = str(time_step // self.args.save_rate)
-        model_path = os.path.join(self.args.svae_dir, self.args.scenario_name)
+        model_path = os.path.join(self.args.save_dir, self.args.scenario_name)
         if not os.path.exists(model_path):
             os.makedirs(model_path)
         model_path = os.path.join(model_path, 'agent')
 
         if not os.path.exists(model_path):
             os.makedirs(model_path)
-        torch.save(self.policy_network.state_dict(), model_path + '/' + num + '_policy_params.pkl')        
+        for agent_id, policy in enumerate(self.policies):
+            torch.save(policy.model.state_dict(), model_path + '/' + num + '_agent_' + str(agent_id) + '_policy_params.pkl')
